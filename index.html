@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Kabir Beauty App</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <style>
+        :root { --primary: #ff3385; --dark: #050505; --accent: #00d2ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--dark); color: white; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Top Bar */
+        .top-bar { height: 60px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; background: #000; border-bottom: 1px solid #1a1a1a; z-index: 100; }
+        .logo-text { font-weight: 800; font-size: 14px; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; }
+        
+        /* Change Counter & Steps */
+        .counter-box { background: rgba(255, 51, 133, 0.2); color: var(--primary); font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--primary); font-weight: bold; }
+
+        /* Main Viewport */
+        .viewport { flex: 1; position: relative; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .img-container { position: relative; width: 95%; height: 95%; display: none; }
+        canvas { position: absolute; max-width: 100%; max-height: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%); object-fit: contain; }
+        #previewCanvas { z-index: 10; transition: filter 0.1s; }
+
+        /* Floating Compare Button */
+        .compare-btn {
+            position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3); border-radius: 50%;
+            display: none; align-items: center; justify-content: center;
+            z-index: 50; font-size: 22px; cursor: pointer; user-select: none;
+        }
+
+        /* Edit Panel */
+        .edit-panel { background: #0f0f0f; padding: 20px; border-radius: 30px 30px 0 0; display: none; border-top: 1px solid #222; z-index: 90; }
+        .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+        .control-box { background: #1a1a1a; padding: 12px; border-radius: 15px; text-align: center; border: 1px solid #282828; }
+        .control-box i { font-size: 20px; color: var(--primary); margin-bottom: 5px; }
+        .control-box label { font-size: 10px; color: #aaa; display: block; text-transform: uppercase; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; accent-color: var(--primary); height: 5px; }
+
+        /* Welcome UI */
+        #welcome-ui { text-align: center; }
+        #welcome-ui i { font-size: 70px; color: var(--primary); filter: drop-shadow(0 0 10px var(--primary)); }
+        #welcome-ui h2 { margin-top: 15px; font-weight: 400; font-size: 18px; }
+
+        /* Bottom Navigation */
+        .bottom-nav { height: 80px; background: #000; display: flex; justify-content: space-around; align-items: center; padding-bottom: 15px; border-top: 1px solid #1a1a1a; }
+        .nav-icon { font-size: 28px; color: #666; cursor: pointer; transition: 0.3s; }
+        .nav-icon:active { color: var(--primary); transform: scale(0.9); }
+        .upload-circle { width: 55px; height: 55px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; color: white; box-shadow: 0 4px 15px rgba(255, 51, 133, 0.4); margin-top: -30px; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo-text">Kabir Beauty App <span id="change-count" class="counter-box">Changes: 0</span></div>
+    <div style="display:flex; gap:15px; align-items: center;">
+        <i class='bx bx-undo nav-icon' onclick="undoAction()" style="font-size: 24px; color: white;" title="Undo"></i>
+        <i class='bx bx-redo nav-icon' onclick="redoAction()" style="font-size: 24px; color: white;" title="Redo"></i>
+    </div>
+</div>
+
+<div class="viewport">
+    <div id="welcome-ui">
+        <i class='bx bxs-cloud-upload'></i>
+        <h2>RB Beauty Studio</h2>
+        <p style="font-size: 11px; opacity: 0.4;">Upload photo to begin</p>
+    </div>
+
+    <div class="img-container" id="img-container">
+        <canvas id="previewCanvas"></canvas>
+        <div class="compare-btn" id="compare-btn">
+            <i class='bx bxs-copy-alt'></i>
+        </div>
+    </div>
+</div>
+
+<div class="edit-panel" id="edit-panel">
+    <div class="control-grid">
+        <div class="control-box">
+            <i class='bx bxs-face'></i>
+            <label>Skin Soft</label>
+            <input type="range" id="soft" min="0" max="100" value="0" oninput="applyMagic()" onchange="recordStep()">
+        </div>
+        <div class="control-box">
+            <i class='bx bxs-sun'></i>
+            <label>Face Glow</label>
+            <input type="range" id="glow" min="100" max="160" value="100" oninput="applyMagic()" onchange="recordStep()">
+        </div>
+        <div class="control-box">
+            <i class='bx bxs-palette'></i>
+            <label>Rosy Lips</label>
+            <input type="range" id="lips" min="0" max="50" value="0" oninput="applyMagic()" onchange="recordStep()">
+        </div>
+        <div class="control-box">
+            <i class='bx bxs-adjust'></i>
+            <label>Sharpness</label>
+            <input type="range" id="sharp" min="100" max="140" value="100" oninput="applyMagic()" onchange="recordStep()">
+        </div>
+    </div>
+</div>
+
+<footer class="bottom-nav">
+    <i class='bx bxs-magic-wand nav-icon' onclick="autoGlow()"></i>
+    <div class="upload-circle" onclick="document.getElementById('file-input').click()">
+        <i class='bx bx-plus'></i>
+    </div>
+    <i class='bx bxs-download nav-icon' id="download-btn" style="color: var(--accent);"></i>
+</footer>
+
+<input type="file" id="file-input" accept="image/*" style="display:none;">
+
+<script>
+    const fileInput = document.getElementById('file-input');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const ctx = previewCanvas.getContext('2d');
+    const compareBtn = document.getElementById('compare-btn');
+    const changeCounter = document.getElementById('change-count');
+    
+    let originalImage = null;
+    let undoStack = [];
+    let redoStack = [];
+
+    function getCurrentState() {
+        return {
+            soft: document.getElementById('soft').value,
+            glow: document.getElementById('glow').value,
+            lips: document.getElementById('lips').value,
+            sharp: document.getElementById('sharp').value
+        };
+    }
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    previewCanvas.width = img.width;
+                    previewCanvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    document.getElementById('welcome-ui').style.display = "none";
+                    document.getElementById('img-container').style.display = "block";
+                    document.getElementById('edit-panel').style.display = "block";
+                    compareBtn.style.display = "flex";
+                    
+                    undoStack = [getCurrentState()];
+                    redoStack = [];
+                    updateCounter();
+                    applyMagic();
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    function applyMagic() {
+        if (!originalImage) return;
+        const s = getCurrentState();
+        previewCanvas.style.filter = `
+            blur(${s.soft/40}px) 
+            brightness(${s.glow}%) 
+            contrast(${100 + (s.soft/6)}%) 
+            saturate(${100 + (s.lips*1.5)}%)
+            contrast(${s.sharp}%)
+        `;
+    }
+
+    function recordStep() {
+        undoStack.push(getCurrentState());
+        redoStack = []; 
+        updateCounter();
+    }
+
+    function undoAction() {
+        if (undoStack.length > 1) {
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+            const prevState = undoStack[undoStack.length - 1];
+            applyState(prevState);
+        }
+    }
+
+    function redoAction() {
+        if (redoStack.length > 0) {
+            const nextState = redoStack.pop();
+            undoStack.push(nextState);
+            applyState(nextState);
+        }
+    }
+
+    function applyState(state) {
+        document.getElementById('soft').value = state.soft;
+        document.getElementById('glow').value = state.glow;
+        document.getElementById('lips').value = state.lips;
+        document.getElementById('sharp').value = state.sharp;
+        updateCounter();
+        applyMagic();
+    }
+
+    function updateCounter() {
+        const count = Math.max(0, undoStack.length - 1);
+        changeCounter.innerText = "Changes: " + count;
+    }
+
+    function autoGlow() {
+        document.getElementById('soft').value = 35;
+        document.getElementById('glow').value = 120;
+        document.getElementById('lips').value = 15;
+        recordStep();
+        applyMagic();
+    }
+
+    const showOriginal = () => { previewCanvas.style.filter = "none"; ctx.drawImage(originalImage, 0, 0); };
+    const showEdited = () => { applyMagic(); };
+
+    compareBtn.addEventListener('touchstart', (e) => { e.preventDefault(); showOriginal(); });
+    compareBtn.addEventListener('touchend', showEdited);
+    compareBtn.addEventListener('mousedown', showOriginal);
+    compareBtn.addEventListener('mouseup', showEdited);
+
+    document.getElementById('download-btn').onclick = () => {
+        if(!originalImage) return;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = previewCanvas.width;
+        tempCanvas.height = previewCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.filter = previewCanvas.style.filter;
+        tempCtx.drawImage(originalImage, 0, 0);
+        const link = document.createElement('a');
+        link.download = `RB_Elite_${Date.now()}.png`;
+        link.href = tempCanvas.toDataURL();
+        link.click();
+    };
+</script>
+</body>
+</html>
